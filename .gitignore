@@ -1,0 +1,5 @@
+#files to be ignored in commits 
+
+#testbench artifacts
+*.vvp
+*.vcd
