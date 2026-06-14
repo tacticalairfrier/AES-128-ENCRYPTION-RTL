@@ -3,3 +3,6 @@
 #testbench artifacts
 *.vvp
 *.vcd
+
+#directory which holds the resources's pdfs
+aes-docs/
