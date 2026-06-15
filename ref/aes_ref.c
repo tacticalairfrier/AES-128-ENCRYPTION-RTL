@@ -8,6 +8,7 @@
 uint8_t xtimes(uint8_t num);
 void subbytes(uint8_t* state);
 void shiftrows(uint8_t* state);
+void mixcolumns(uint8_t* state);
 void swap(uint8_t* a, uint8_t* b);
 //this is the reference c program/code for the aes128 encryption algorithm
 //take uint8_t[16] instead of uint8_t[4][4] as it is easier to compute and easier to optimise?
@@ -76,6 +77,22 @@ void shiftrows(uint8_t* state) {
     swap(&state[3], &state[11]);
     swap(&state[3], &state[15]);
 }
+
+//implementing the mixcolumns function
+void mixcolumns(uint8_t* state) {
+    uint8_t b0, b1, b2, b3;
+    for (int i = 0; i < 4; i++) {
+        b0 = state[4 * i];
+        b1 = state[4 * i + 1];
+        b2 = state[4 * i + 2];
+        b3 = state[4 * i + 3];
+        state[4 * i] = xtimes(b0) ^ (xtimes(b1) ^ b1) ^ b2 ^ b3;
+        state[4 * i + 1] = b0 ^ xtimes(b1) ^ (xtimes(b2) ^ b2) ^ b3;
+        state[4 * 1 + 2] = b0 ^ b1 ^ xtimes(b2) ^ (xtimes(b3) ^ b3);
+        state[4 * i + 3] = (xtimes(b0) ^ b0) ^ b1 ^ b2 ^ xtimes(b3);
+    }
+}
+
 //implementing the swap function
 void swap(uint8_t* a, uint8_t* b) {
     uint8_t temp;
@@ -84,12 +101,14 @@ void swap(uint8_t* a, uint8_t* b) {
     *b = temp;
 }
 
-// int main(void) {
-//     uint8_t state[16] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
-//     subbytes(state);
-//     // shiftrows(state);
-//     for (int i = 0;i < 16;i++) {
-//         printf("%x\n", state[i]);
-//     }
-//     return 0;
-// }
+
+int main(void) {
+    uint8_t state[16] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
+    subbytes(state);
+    shiftrows(state);
+    mixcolumns(state);
+    for (int i = 0;i < 16;i++) {
+        printf("%d\n", state[i]);
+    }
+    return 0;
+}
