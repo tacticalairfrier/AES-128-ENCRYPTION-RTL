@@ -7,6 +7,8 @@
 //declaring all function prototypes here
 uint8_t xtimes(uint8_t num);
 void subbytes(uint8_t* state);
+void shiftrows(uint8_t* state);
+void swap(uint8_t* a, uint8_t* b);
 //this is the reference c program/code for the aes128 encryption algorithm
 //take uint8_t[16] instead of uint8_t[4][4] as it is easier to compute and easier to optimise?
 //defining the s-box here
@@ -59,3 +61,35 @@ void subbytes(uint8_t* state) {
         state[i] = sbox[((state[i] & 0xf0) / 0x10)][state[i] & 0x0f];
     }
 }
+//shiftrows
+void shiftrows(uint8_t* state) {
+    //row 0 doesnt have any swappings
+    //swappings for the row 1
+    swap(&state[1], &state[13]);
+    swap(&state[1], &state[5]);
+    swap(&state[5], &state[9]);
+    //swappings for the row 2
+    swap(&state[2], &state[10]);
+    swap(&state[6], &state[14]);
+    //swappings for the row 3
+    swap(&state[3], &state[7]);
+    swap(&state[3], &state[11]);
+    swap(&state[3], &state[15]);
+}
+//implementing the swap function
+void swap(uint8_t* a, uint8_t* b) {
+    uint8_t temp;
+    temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+// int main(void) {
+//     uint8_t state[16] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
+//     subbytes(state);
+//     // shiftrows(state);
+//     for (int i = 0;i < 16;i++) {
+//         printf("%x\n", state[i]);
+//     }
+//     return 0;
+// }
