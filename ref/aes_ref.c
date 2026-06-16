@@ -1,15 +1,26 @@
 #include<stdio.h>
 #include<stdint.h>
 #include<stdbool.h>
+#include<string.h>
 //mathermatical definitions for aes
 #define NB 4 //number of bytes in a column
 #define NK 4 // number of 32 bit or 4 byte words in the key i.e the key is 16 bytes long
+#define NR 10 //number of rounds is 10 for aes128
 //declaring all function prototypes here
 uint8_t xtimes(uint8_t num);
 void subbytes(uint8_t* state);
+void invsubbytes(uint8_t* state);
 void shiftrows(uint8_t* state);
+void invshiftrows(uint8_t* state);
 void mixcolumns(uint8_t* state);
+void invmixcolumns(uint8_t* state);
 void swap(uint8_t* a, uint8_t* b);
+void addroundkey(uint8_t* state, uint32_t* w);
+void keyexpansion(uint32_t key[4], uint32_t* w);
+void cipher(uint32_t* in, uint32_t* out, uint32_t* w);
+void decipher(uint32_t* in, uint32_t* out, uint32_t* w);
+uint32_t rotword(uint32_t word);
+uint32_t subword(uint32_t word);
 //this is the reference c program/code for the aes128 encryption algorithm
 //take uint8_t[16] instead of uint8_t[4][4] as it is easier to compute and easier to optimise?
 //defining the s-box here
@@ -50,8 +61,31 @@ static uint8_t invsbox[16][16] = {
     {0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61},
     {0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d},
 };
-
+//rcon look up table
+static uint32_t rcon[10] = { 0x01000000, 0x02000000, 0x04000000, 0x08000000, 0x10000000, 0x20000000, 0x40000000, 0x80000000, 0x1b000000, 0x36000000 };
 //implementation of the xtimes function
+void cipher(uint32_t* in, uint32_t* out, uint32_t* w) {
+    uint8_t state[16];
+    for (int i = 0;i < 4; i++) {
+        state[4 * i] = in[i] >> 24;
+        state[4 * i + 1] = in[i] >> 16;
+        state[4 * i + 2] = in[i] >> 8;
+        state[4 * i + 3] = in[i];
+    }
+    addroundkey(state, w);
+    for (int i = 1; i <= NR - 1; i++) {
+        subbytes(state);
+        shiftrows(state);
+        mixcolumns(state);
+        addroundkey(state, w + i * 4);
+    }
+    subbytes(state);
+    shiftrows(state);
+    addroundkey(state, w + NR * 4);
+    for (int i = 0; i < 4;i++) {
+        out[i] = state[4 * i] << 24 | state[4 * i + 1] << 16 | state[4 * i + 2] << 8 | state[4 * i + 3];
+    }
+}
 uint8_t xtimes(uint8_t num) {
     return (num & 0x80) ? ((num << 1) ^ 0x1b) : (num << 1);
 }
@@ -88,7 +122,7 @@ void mixcolumns(uint8_t* state) {
         b3 = state[4 * i + 3];
         state[4 * i] = xtimes(b0) ^ (xtimes(b1) ^ b1) ^ b2 ^ b3;
         state[4 * i + 1] = b0 ^ xtimes(b1) ^ (xtimes(b2) ^ b2) ^ b3;
-        state[4 * 1 + 2] = b0 ^ b1 ^ xtimes(b2) ^ (xtimes(b3) ^ b3);
+        state[4 * i + 2] = b0 ^ b1 ^ xtimes(b2) ^ (xtimes(b3) ^ b3);
         state[4 * i + 3] = (xtimes(b0) ^ b0) ^ b1 ^ b2 ^ xtimes(b3);
     }
 }
@@ -101,14 +135,72 @@ void swap(uint8_t* a, uint8_t* b) {
     *b = temp;
 }
 
+//making the addroundkey function here
+void addroundkey(uint8_t* state, uint32_t* w) {
+    for (int i = 0;i < 4;i++) {
+        state[4 * i] ^= w[i] >> 24;
+        state[4 * i + 1] ^= w[i] >> 16;
+        state[4 * i + 2] ^= w[i] >> 8;
+        state[4 * i + 3] ^= w[i];
+    }
+}
+
+//keyexpansion
+void keyexpansion(uint32_t key[4], uint32_t* w) {
+    //first puttin all the initial key vals in w
+    for (int i = 0; i < NK; i++) {
+        w[i] = key[i];
+    }
+    //expanding with the second part
+    for (int i = 4; i < 44; i++) {
+        if (i % 4 == 0) {
+            w[i] = subword(rotword(w[i - 1])) ^ rcon[i / NK - 1] ^ w[i - NK];
+        }
+        else {
+            w[i] = w[i - NK] ^ w[i - 1];
+        }
+    }
+}
+
+//rotword
+uint32_t rotword(uint32_t word) {
+    //lets take a thing i.e a collection of 4 8 bit int
+    uint8_t word_8[4];
+    word_8[0] = word;
+    word_8[1] = word >> 8;
+    word_8[2] = word >> 16;
+    word_8[3] = word >> 24;
+    swap(&word_8[0], &word_8[3]);
+    swap(&word_8[2], &word_8[3]);
+    swap(&word_8[1], &word_8[2]);
+    word = (word_8[3] << 24 | word_8[2] << 16 | word_8[1] << 8 | word_8[0]);
+    return word;
+}
+
+//subword
+uint32_t subword(uint32_t word) {
+    //lets take a thing i.e a collection of 4 8 bit int
+    uint8_t word_8[4];
+    word_8[0] = word;
+    word_8[1] = word >> 8;
+    word_8[2] = word >> 16;
+    word_8[3] = word >> 24;
+    for (int i = 0; i < 4; i++) {
+        word_8[i] = sbox[((word_8[i] & 0xf0) / 0x10)][word_8[i] & 0x0f];
+    }
+    word = (word_8[3] << 24 | word_8[2] << 16 | word_8[1] << 8 | word_8[0]);
+    return word;
+}
 
 int main(void) {
-    uint8_t state[16] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
-    subbytes(state);
-    shiftrows(state);
-    mixcolumns(state);
-    for (int i = 0;i < 16;i++) {
-        printf("%d\n", state[i]);
+    uint32_t key[4] = { 0x2b7e1516,  0x28aed2a6, 0xabf71588, 0x09cf4f3c };
+    uint32_t in[4] = { 0x3243f6a8, 0x885a308d, 0x313198a2, 0xe0370734 };
+    uint32_t out[4];
+    uint32_t w[44];
+    keyexpansion(key, w);
+    cipher(in, out, w);
+    for (int i = 0;i < 4;i++) {
+        printf("%x\n", out[i]);
     }
     return 0;
 }
