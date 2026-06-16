@@ -17,8 +17,10 @@ void invmixcolumns(uint8_t* state);
 void swap(uint8_t* a, uint8_t* b);
 void addroundkey(uint8_t* state, uint32_t* w);
 void keyexpansion(uint32_t key[4], uint32_t* w);
+void keyexpansioneic(uint32_t key[4], uint32_t* dw);
 void cipher(uint32_t* in, uint32_t* out, uint32_t* w);
-void decipher(uint32_t* in, uint32_t* out, uint32_t* w);
+void invcipher(uint32_t* in, uint32_t* out, uint32_t* w);
+void eqinvcipher(uint32_t* in, uint32_t* out, uint32_t* dw);
 uint32_t rotword(uint32_t word);
 uint32_t subword(uint32_t word);
 //this is the reference c program/code for the aes128 encryption algorithm
@@ -86,6 +88,51 @@ void cipher(uint32_t* in, uint32_t* out, uint32_t* w) {
         out[i] = state[4 * i] << 24 | state[4 * i + 1] << 16 | state[4 * i + 2] << 8 | state[4 * i + 3];
     }
 }
+void invcipher(uint32_t* in, uint32_t* out, uint32_t* w) {
+    uint8_t state[16];
+    for (int i = 0;i < 4; i++) {
+        state[4 * i] = in[i] >> 24;
+        state[4 * i + 1] = in[i] >> 16;
+        state[4 * i + 2] = in[i] >> 8;
+        state[4 * i + 3] = in[i];
+    }
+    addroundkey(state, w + 4 * NR);
+    for (int i = NR - 1; i >= 1; i--) {
+        invsubbytes(state);
+        invshiftrows(state);
+        addroundkey(state, w + i * 4);
+        invmixcolumns(state);
+    }
+    invsubbytes(state);
+    invshiftrows(state);
+    addroundkey(state, w);
+    for (int i = 0; i < 4;i++) {
+        out[i] = state[4 * i] << 24 | state[4 * i + 1] << 16 | state[4 * i + 2] << 8 | state[4 * i + 3];
+    }
+}
+//the eqinvcipher here
+void eqinvcipher(uint32_t* in, uint32_t* out, uint32_t* dw) {
+    uint8_t state[16];
+    for (int i = 0;i < 4; i++) {
+        state[4 * i] = in[i] >> 24;
+        state[4 * i + 1] = in[i] >> 16;
+        state[4 * i + 2] = in[i] >> 8;
+        state[4 * i + 3] = in[i];
+    }
+    addroundkey(state, dw + 4 * NR);
+    for (int i = NR - 1; i >= 1; i--) {
+        invsubbytes(state);
+        invshiftrows(state);
+        invmixcolumns(state);
+        addroundkey(state, dw + i * 4);
+    }
+    invsubbytes(state);
+    invshiftrows(state);
+    addroundkey(state, dw);
+    for (int i = 0; i < 4;i++) {
+        out[i] = state[4 * i] << 24 | state[4 * i + 1] << 16 | state[4 * i + 2] << 8 | state[4 * i + 3];
+    }
+}
 uint8_t xtimes(uint8_t num) {
     return (num & 0x80) ? ((num << 1) ^ 0x1b) : (num << 1);
 }
@@ -94,6 +141,12 @@ uint8_t xtimes(uint8_t num) {
 void subbytes(uint8_t* state) {
     for (int i = 0; i < 16; i++) {
         state[i] = sbox[((state[i] & 0xf0) / 0x10)][state[i] & 0x0f];
+    }
+}
+//inverse subbytes using the invsbox lut
+void invsubbytes(uint8_t* state) {
+    for (int i = 0; i < 16; i++) {
+        state[i] = invsbox[((state[i] & 0xf0) / 0x10)][state[i] & 0x0f];
     }
 }
 //shiftrows
@@ -111,19 +164,50 @@ void shiftrows(uint8_t* state) {
     swap(&state[3], &state[11]);
     swap(&state[3], &state[15]);
 }
-
+//invshiftrows
+void invshiftrows(uint8_t* state) {
+    //row 0 doesnt have any swappings
+    //swappings for the row 1
+    swap(&state[1], &state[13]);
+    swap(&state[9], &state[13]);
+    swap(&state[5], &state[9]);
+    //swappings for row 2
+    swap(&state[2], &state[10]);
+    swap(&state[6], &state[14]);
+    //swappings for row 3
+    swap(&state[3], &state[7]);
+    swap(&state[7], &state[11]);
+    swap(&state[11], &state[15]);
+}
 //implementing the mixcolumns function
 void mixcolumns(uint8_t* state) {
     uint8_t b0, b1, b2, b3;
     for (int i = 0; i < 4; i++) {
+        //copying over the current state in a temporary register
         b0 = state[4 * i];
         b1 = state[4 * i + 1];
         b2 = state[4 * i + 2];
         b3 = state[4 * i + 3];
+        //multiplying according to the matrix
         state[4 * i] = xtimes(b0) ^ (xtimes(b1) ^ b1) ^ b2 ^ b3;
         state[4 * i + 1] = b0 ^ xtimes(b1) ^ (xtimes(b2) ^ b2) ^ b3;
         state[4 * i + 2] = b0 ^ b1 ^ xtimes(b2) ^ (xtimes(b3) ^ b3);
         state[4 * i + 3] = (xtimes(b0) ^ b0) ^ b1 ^ b2 ^ xtimes(b3);
+    }
+}
+
+//inverse of mixcolumns
+void invmixcolumns(uint8_t* state) {
+    uint8_t b0, b1, b2, b3;
+    for (int i = 0;i < 4;i++) {
+        b0 = state[4 * i];
+        b1 = state[4 * i + 1];
+        b2 = state[4 * i + 2];
+        b3 = state[4 * i + 3];
+        state[4 * i] = xtimes(xtimes(xtimes(b0))) ^ xtimes(xtimes(b0)) ^ xtimes(b0) ^ xtimes(xtimes(xtimes(b1))) ^ xtimes(b1) ^ b1 ^ xtimes(xtimes(xtimes(b2))) ^ xtimes(xtimes(b2)) ^ b2 ^ xtimes(xtimes(xtimes(b3))) ^ b3;
+        state[4 * i + 1] = xtimes(xtimes(xtimes(b0))) ^ b0 ^ xtimes(xtimes(xtimes(b1))) ^ xtimes(xtimes(b1)) ^ xtimes(b1) ^ xtimes(xtimes(xtimes(b2))) ^ xtimes(b2) ^ b2 ^ xtimes(xtimes(xtimes(b3))) ^ xtimes(xtimes(b3)) ^ b3;
+        state[4 * i + 2] = xtimes(xtimes(xtimes(b0))) ^ xtimes(xtimes(b0)) ^ b0 ^ xtimes(xtimes(xtimes(b1))) ^ b1 ^ xtimes(xtimes(xtimes(b2))) ^ xtimes(xtimes(b2)) ^ xtimes(b2) ^ xtimes(xtimes(xtimes(b3))) ^ xtimes(b3) ^ b3;
+        state[4 * i + 3] = xtimes(xtimes(xtimes(b0))) ^ xtimes(b0) ^ b0 ^ xtimes(xtimes(xtimes(b1))) ^ xtimes(xtimes(b1)) ^ b1 ^ xtimes(xtimes(xtimes(b2))) ^ b2 ^ xtimes(xtimes(xtimes(b3))) ^ xtimes(xtimes(b3)) ^ xtimes(b3);
     }
 }
 
@@ -161,7 +245,35 @@ void keyexpansion(uint32_t key[4], uint32_t* w) {
         }
     }
 }
-
+//keyexpansion for eqinvcipher key schedule
+void keyexpansioneic(uint32_t key[4], uint32_t* dw) {
+    //first puttin all the initial key vals in w
+    uint8_t dw_byte[16];
+    for (int i = 0; i < NK; i++) {
+        dw[i] = key[i];
+    }
+    //expanding with the second part
+    for (int i = 4; i < 44; i++) {
+        if (i % 4 == 0) {
+            dw[i] = subword(rotword(dw[i - 1])) ^ rcon[i / NK - 1] ^ dw[i - NK];
+        }
+        else {
+            dw[i] = dw[i - NK] ^ dw[i - 1];
+        }
+    }
+    for (int i = 1;i < NR;i++) {
+        for (int j = 0;j < 4;j++) {
+            dw_byte[4 * j] = dw[4 * i + j] >> 24;
+            dw_byte[4 * j + 1] = dw[4 * i + j] >> 16;
+            dw_byte[4 * j + 2] = dw[4 * i + j] >> 8;
+            dw_byte[4 * j + 3] = dw[4 * i + j];
+        }
+        invmixcolumns(dw_byte);
+        for (int j = 0; j < 4;j++) {
+            dw[4 * i + j] = (dw_byte[4 * j] << 24 | dw_byte[4 * j + 1] << 16 | dw_byte[4 * j + 2] << 8 | dw_byte[4 * j + 3]);
+        }
+    }
+}
 //rotword
 uint32_t rotword(uint32_t word) {
     //lets take a thing i.e a collection of 4 8 bit int
@@ -196,11 +308,27 @@ int main(void) {
     uint32_t key[4] = { 0x2b7e1516,  0x28aed2a6, 0xabf71588, 0x09cf4f3c };
     uint32_t in[4] = { 0x3243f6a8, 0x885a308d, 0x313198a2, 0xe0370734 };
     uint32_t out[4];
-    uint32_t w[44];
+    uint32_t in_re[4], in_re_eq[4];
+    uint32_t w[44], dw[44];
+    for (int i = 0;i < 4;i++) {
+        printf("%x\n", in[i]);
+    }
+    printf("\n\n\n");
     keyexpansion(key, w);
+    keyexpansioneic(key, dw);
     cipher(in, out, w);
     for (int i = 0;i < 4;i++) {
         printf("%x\n", out[i]);
+    }
+    printf("\n\n\n");
+    invcipher(out, in_re, w);
+    for (int i = 0;i < 4;i++) {
+        printf("%x\n", in_re[i]);
+    }
+    printf("\n\n\n");
+    eqinvcipher(out, in_re_eq, dw);
+    for (int i = 0;i < 4;i++) {
+        printf("%x\n", in_re_eq[i]);
     }
     return 0;
 }
