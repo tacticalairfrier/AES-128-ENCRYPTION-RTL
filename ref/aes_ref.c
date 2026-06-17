@@ -1,6 +1,6 @@
 #include<stdio.h>
 #include<stdint.h>
-#include<stdbool.h>
+#include<stdlib.h>
 #include<string.h>
 //mathermatical definitions for aes
 #define NB 4 //number of bytes in a column
@@ -303,32 +303,60 @@ uint32_t subword(uint32_t word) {
     word = (word_8[3] << 24 | word_8[2] << 16 | word_8[1] << 8 | word_8[0]);
     return word;
 }
-
-int main(void) {
-    uint32_t key[4] = { 0x2b7e1516,  0x28aed2a6, 0xabf71588, 0x09cf4f3c };
-    uint32_t in[4] = { 0x3243f6a8, 0x885a308d, 0x313198a2, 0xe0370734 };
-    uint32_t out[4];
-    uint32_t in_re[4], in_re_eq[4];
+int main(int argc, char* argv[]) {
+    uint32_t in[4];
+    uint32_t key[4];
+    uint32_t out[3];
     uint32_t w[44], dw[44];
-    for (int i = 0;i < 4;i++) {
-        printf("%x\n", in[i]);
+    char* endptr_pt;
+    char* endptr_key;
+    if (argc > 4) {
+        fprintf(stderr, "ERR: too many arguments\n");
+        return -1;
     }
-    printf("\n\n\n");
-    keyexpansion(key, w);
-    keyexpansioneic(key, dw);
-    cipher(in, out, w);
-    for (int i = 0;i < 4;i++) {
-        printf("%x\n", out[i]);
+    else if (argc < 4) {
+        fprintf(stderr, "ERR: less arguments applied\n");
+        return -2;
     }
-    printf("\n\n\n");
-    invcipher(out, in_re, w);
-    for (int i = 0;i < 4;i++) {
-        printf("%x\n", in_re[i]);
-    }
-    printf("\n\n\n");
-    eqinvcipher(out, in_re_eq, dw);
-    for (int i = 0;i < 4;i++) {
-        printf("%x\n", in_re_eq[i]);
+    else {
+        //parsing through the plaintext and key
+        in[0] = strtoul(argv[2], &endptr_pt, 16);
+        key[0] = strtoul(argv[3], &endptr_key, 16);
+        for (int i = 1;i < 4;i++) {
+            in[i] = strtoul(endptr_pt + 1, &endptr_pt, 16);
+            key[i] = strtoul(endptr_key + 1, &endptr_key, 16);
+        }
+        keyexpansion(key, w);
+        keyexpansioneic(key, dw);
+        //enc for encryption using cipher fxn
+        if (!strcmp(argv[1], "enc")) {
+            cipher(in, out, w);
+            for (int i = 0;i < 4;i++) {
+                printf("%08x", out[i]);
+            }
+            printf("\n");
+        }
+        //dec for decryption using the inv fxn
+        else if (!strcmp(argv[1], "dec")) {
+            invcipher(in, out, w);
+            for (int i = 0;i < 4;i++) {
+                printf("%08x", out[i]);
+            }
+            printf("\n");
+        }
+        //eqdec for using the eqivalent decrypt fxn
+        else if (!strcmp(argv[1], "eqdec")) {
+            eqinvcipher(in, out, dw);
+            for (int i = 0;i < 4;i++) {
+                printf("%08x", out[i]);
+            }
+            printf("\n");
+        }
+        else {
+            //if unc doesnt even know the basic commands how lame lmao
+            fprintf(stderr, "ERR: not the correct command\nenter only\n");
+            fprintf(stderr, "enc for encryption\ndec for decryption\nundec for equivalend decryption");
+        }
     }
     return 0;
 }
