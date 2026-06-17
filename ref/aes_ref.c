@@ -355,7 +355,7 @@ int main(int argc, char* argv[]) {
         else {
             //if unc doesnt even know the basic commands how lame lmao
             fprintf(stderr, "ERR: not the correct command\nenter only\n");
-            fprintf(stderr, "enc for encryption\ndec for decryption\nundec for equivalend decryption");
+            fprintf(stderr, "enc for encryption\ndec for decryption\neqdec for equivalent decryption\n");
         }
     }
     return 0;
