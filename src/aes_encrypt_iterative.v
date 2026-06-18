@@ -82,7 +82,7 @@ function xtimes(
 );
     xtimes = (num[7])?((num<<1)^8'h1b):(num<<1);
 endfunction
-function sbox(
+function [7:0]sbox(
     input [7:0] inbyte;
 );//behold the fruits of my manual labour
 begin
