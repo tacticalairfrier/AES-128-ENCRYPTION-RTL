@@ -1,91 +1,30 @@
+`timescale 1ns/1ps
 `default_nettype none
 `define TRUE 1'b1
-`define FALSE 1'b
+`define FALSE 1'b0
 
-module aes_encrypt_iterative(
+module test_sbox_fxn;
+reg [7:0] in_sb;
+reg [7:0] out_sb;
 
-);
-//spi slave for communication with the aes encryption core as it utilises 128 bit things
-//cant afford that for obv reasons on real hardwar
-endmodule
-module aes_encrypt_block_iterative(
-    input [7:0] wire [0:15] in, key,
-    input wire clkin, reset, enable,
-    output [7:0] reg [0:15] out,
-    output reg busy
-);
-//since this is aes 128, the rounds are 128
-localparam ROUNDS = 4'd10;
-localparam SETUP = 2'b00, ENCRYPT = 2'b01, UPDATE = 2'b10;
-//setup is sort of like idle situation and the thing is important
-//encrypt is the main cycle and will consume 10 clock cycles
-//update updates all setup values i.e updates the out
-integer i;
-//making state a a 16 byte wide register
-reg [7:0] state [0:16];
-reg [7:0] nextstate [0:16];
-reg [7:0] key_arr [0:16];
-reg [7:0] nextkey_arr [0:16];
-reg [3:0] roundcounter; 
-reg [1:0] state_fsm, nextstate_fsm;
-//here state fsm is the state for the fsm which is a 2 bit counter
-always@(posedge clkin, negedge reset)begin
-    if(!reset)begin
-        roundcounter <= ROUNDS;
-        state_fsm <= SETUP;
-        key_arr <= nextkey_arr;
-        state <= nextstate;   
-    end
-    else begin
-        case(state)
-        SETUP:begin
-            key_arr <= 
-        end
-        ENCRYPT:begin
-            
-        end
-        UPDATE:begin
-            
-        end
-        endcase
+initial begin 
+    $dumpfile("sim.vcd");
+    $dumpvars(0, test_sbox_fxn);
+    //repeating 256 times to test every single case
+    //initialising the register variables to zero
+    in_sb = 8'h00;
+
+    #100;
+    repeat(256)begin
+        out_sb = sbox(in_sb);
+        #100;
+        in_sb = in_sb+8'h01;
     end
 end
-//xtimes function is implemented this way in order to be cheaper on hardware
-always@(*)begin
-    nextstate_fsm = state_fsm;
-    nextstate = state;
-    nextkey_arr = key_arr;
-    if(!reset)begin
-        nextstate_fsm = SETUP;
-        out = 128'd0;
-        for(i=0;i<16;i=i+1)begin
-            nextstate[i] = 8'h00;
-            nextkey_arr[i]= 8'h00;
-        end
-    end
-    else begin
-        case(state)
-            SETUP:begin
-                
-            end
-            ENCRYPT:begin
-                
-            end
-            UPDATE: begin
-                
-            end
-        endcase
-    end      
-end
-function xtimes(
-    input [7:0] in_xt
-);
-    xtimes = (num[7])?((num<<1)^8'h1b):(num<<1);
-endfunction
-function sbox(
-    input [7:0] inbyte;
+
+function [7:0] sbox(
+    input [7:0] inbyte
 );//behold the fruits of my manual labour
-begin
 case(inbyte)
     8'h00: sbox = 8'h63;
     8'h01: sbox = 8'h7c;
@@ -344,6 +283,5 @@ case(inbyte)
     8'hfe: sbox = 8'hbb;
     8'hff: sbox = 8'h16;       
 endcase
-end
 endfunction
 endmodule
