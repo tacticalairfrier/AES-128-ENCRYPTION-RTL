@@ -1,19 +1,17 @@
 `default_nettype none
 `define TRUE 1'b1
-`define FALSE 1'b
+`define FALSE 1'b0
 
 module aes_encrypt_iterative(
-
-);
-//spi slave for communication with the aes encryption core as it utilises 128 bit things
-//cant afford that for obv reasons on real hardwar
-endmodule
-module aes_encrypt_block_iterative(
-    input [7:0] wire [0:15] in, key,
+    input wire [7:0] in [0:15],
+    input wire [7:0] key [0:15] ,
     input wire clkin, reset, enable,
-    output [7:0] reg [0:15] out,
+    output reg [7:0] out[0:15] ,
     output reg busy
 );
+//verilator things
+/* verilator lint_off CASEINCOMPLETE */
+/* verilator lint_off WIDTHEXPAND */
 //since this is aes 128, the rounds are 128
 localparam ROUNDS = 4'd10;
 localparam SETUP = 2'b00, ENCRYPT = 2'b01, UPDATE = 2'b10;
@@ -22,10 +20,10 @@ localparam SETUP = 2'b00, ENCRYPT = 2'b01, UPDATE = 2'b10;
 //update updates all setup values i.e updates the out
 integer i;
 //making state a a 16 byte wide register
-reg [7:0] state [0:16];
-reg [7:0] nextstate [0:16];
-reg [7:0] key_arr [0:16];
-reg [7:0] nextkey_arr [0:16];
+reg [7:0] state [0:15];
+reg [7:0] nextstate [0:15];
+reg [7:0] key_arr [0:15];
+reg [7:0] nextkey_arr [0:15];
 reg [3:0] roundcounter; 
 reg [1:0] state_fsm, nextstate_fsm;
 //here state fsm is the state for the fsm which is a 2 bit counter
@@ -40,16 +38,17 @@ always@(posedge clkin, negedge reset)begin
         key_arr<=nextkey_arr;
         state<=nextstate;
         state_fsm<=nextstate_fsm;
-        case(state)
-        SETUP:begin
-            roundcounter = ROUNDS;
-        end
-        ENCRYPT:begin
-            roundcounter = roundcounter-1;
-        end
-        UPDATE:begin
-            
-        end
+        case(state_fsm)
+            SETUP:begin
+                roundcounter <= ROUNDS;
+            end
+            ENCRYPT:begin
+                roundcounter <= roundcounter-1;
+            end
+            UPDATE:begin
+                roundcounter <= 4'h0;
+                out <= state;
+            end
         endcase
     end
 end
@@ -58,40 +57,86 @@ always@(*)begin
     nextstate_fsm = state_fsm;
     nextstate = state;
     nextkey_arr = key_arr;
+    busy = `FALSE;
     if(!reset)begin
         nextstate_fsm = SETUP;
         for(i=0;i<16;i=i+1)begin
             nextstate[i] = 8'h00;
             nextkey_arr[i]= 8'h00;
-            out[i]=8'h00;
         end
     end
     else begin
-        case(state)
+        case(state_fsm)
             SETUP:begin
                 if(enable)begin
                     nextstate_fsm = ENCRYPT;
-                    nexstate = in;
-                    nextstate_key = key;
-                end
-                else nextstate_fsm = SETUP;
-            end
-            //all the cipher action happens in the encrypt state instead of making a separate cipher fxn
-            ENCRYPT:begin
-                if(roundcounter==ROUNDS)begin
-                    for(i=0;i<16;i++)begin
-                        nextstate[i] = addroundkey(state[i], key_arr[i]);
-                    end                    
-                end
-                else if(roundcounter>0)begin
-                    
+                    nextstate = in;
+                    nextkey_arr = key;
+                    busy =`TRUE;
                 end
                 else begin
-                    
+                    nextstate_fsm = SETUP;
+                    busy = `FALSE;
+                end 
+            end
+            //here busy is a mooore output as its only strobed in setup, when it enters
+            //all the cipher action happens in the encrypt state instead of making a separate cipher fxn
+            ENCRYPT:begin
+                // {nextkey_arr[i],nextkey_arr[i+1],nextkey_arr[i+2],nextkey_arr[i+3]}
+                ///key scheduling here
+                busy =  `TRUE;
+                //rotword is just shiftrows with 1 
+                {nextkey_arr[0],nextkey_arr[0],nextkey_arr[2],nextkey_arr[3]} = shiftrows({key_arr[0],key_arr[1],key_arr[2],key_arr[3]}, 1);
+                //subwords is as it is
+                {nextkey_arr[0],nextkey_arr[1],nextkey_arr[2],nextkey_arr[3]} = subword({nextkey_arr[0],nextkey_arr[1],nextkey_arr[2],nextkey_arr[3]});
+                //rcon is easy
+                {nextkey_arr[0],nextkey_arr[1],nextkey_arr[2],nextkey_arr[3]} = {nextkey_arr[0],nextkey_arr[1],nextkey_arr[2],nextkey_arr[3]} ^ {rcon((ROUNDS-roundcounter)+4'h01), 24'h000000};
+                //then just xorring with the previous key instance, 
+                {nextkey_arr[0],nextkey_arr[1],nextkey_arr[2],nextkey_arr[3]} = {nextkey_arr[0],nextkey_arr[1],nextkey_arr[2],nextkey_arr[3]} ^ {key_arr[0],key_arr[1],key_arr[2],key_arr[3]};
+                //run a loop 3 times to generate the next 3 key guys
+                for(i=1;i<4;i=i+1)begin
+                   //this time there isnt any rotword subword thing 
+                   {nextkey_arr[4*i],nextkey_arr[4*i+1],nextkey_arr[4*i+4],nextkey_arr[4*i+3]} = {nextkey_arr[4*(i-1)],nextkey_arr[4*(i-1)+1],nextkey_arr[4*(i-1)+2],nextkey_arr[4*(i-1)+3]}^{key_arr[4*i],key_arr[4*i+1],key_arr[4*i+2],key_arr[4*i+3]};
+                end
+                //key scheduling ends here
+                if(roundcounter==ROUNDS)begin//if it is in rounds that is before the first keyschedule is made
+                    for(i=0;i<4;i=i+1)begin
+                        {nextstate[i],nextstate[i+1],nextstate[i+2],nextstate[i+3]} = addroundkey({state[i],state[i+1],state[i+2],state[i+3]}, {key_arr[i],key_arr[i+1], key_arr[i+2], key_arr[i+3]});
+                    end
+                    nextstate_fsm = ENCRYPT;
+                end
+                else if(roundcounter>0)begin// this is after the first step is made
+                    //thus for rounds 9 through 1 ill be herre
+                    //entirity of shiftrows along with subbytes first as this is the only one done row wise
+                    for(i=0;i<4;i=i+1)begin
+                        {nextstate[i], nextstate[i+4], nextstate[i+8], nextstate[i+12]} = subword({state[i], state[i+4], state[i+8], state[i+12]});
+                        {nextstate[i], nextstate[i+4], nextstate[i+8], nextstate[i+12]} = shiftrows({nextstate[i], nextstate[i+4], nextstate[i+8], nextstate[i+12]},i);
+                    end
+                    //subbyte shiftrow end
+                    //mixcolumn addroundkey begin
+                    for(i=0;i<4;i=i+1)begin
+                        {nextstate[4*i],nextstate[4*i+1],nextstate[4*i+2],nextstate[4*i+3]} = mixcolumns({nextstate[4*i], nextstate[4*i+1], nextstate[4*i+2], nextstate[4*i+3]});
+                        {nextstate[4*i],nextstate[4*i+1],nextstate[4*i+2],nextstate[4*i+3]} = addroundkey({nextstate[4*i],nextstate[4*i+1],nextstate[4*i+2],nextstate[4*i+3]},{key_arr[4*i],key_arr[4*i+1],key_arr[4*i+2],key_arr[4*i+3]});
+                    end
+                    //mixcolumns and addroundkey ends
+                    nextstate_fsm = ENCRYPT;                    
+                end
+                else begin
+                    for(i=0;i<4;i=i+1)begin
+                        {nextstate[i], nextstate[i+4], nextstate[i+8], nextstate[i+12]} = subword({state[i], state[i+4], state[i+8], state[i+12]});
+                        {nextstate[i], nextstate[i+4], nextstate[i+8], nextstate[i+12]} = shiftrows({nextstate[i], nextstate[i+4], nextstate[i+8], nextstate[i+12]},i);
+                    end
+                    //subbyte shiftrow end
+                    //mixcolumn addroundkey begin
+                    for(i=0;i<4;i=i+1)begin
+                        {nextstate[4*i],nextstate[4*i+1],nextstate[4*i+2],nextstate[4*i+3]} = addroundkey({nextstate[4*i],nextstate[4*i+1],nextstate[4*i+2],nextstate[4*i+3]},{key_arr[4*i],key_arr[4*i+1],key_arr[4*i+2],key_arr[4*i+3]});
+                    end
+                    nextstate_fsm = UPDATE;
                 end
             end
             UPDATE: begin
-                
+                nextstate_fsm = SETUP;
+                busy = `FALSE;
             end
         endcase
     end      
@@ -102,20 +147,20 @@ function [7:0]xtimes(
     xtimes = (num[7])?((num<<1)^8'h1b):(num<<1);
 endfunction
 //function for addroundkey
-function [7:0] addroundkey(
-    input [7:0] state, key
+function [31:0] addroundkey(
+    input [31:0] state_slice, key_slice
 );
 begin
-    addroundkey = state^key;  
+    addroundkey = state_slice^key_slice;  
 end
 endfunction
 //function for shiftrows
 function[31:0]shiftrows(
     input[31:0] row,
-    input integer i
+    input integer i_sr
 );
 begin
-    case(i)
+    case(i_sr)
         0:begin
             //the 0th row experiences no change
             shiftrows = row;
@@ -139,7 +184,7 @@ begin
             shiftrows[31:24] = row[7:0];
             shiftrows[23:16] = row[31:24];
             shiftrows[15:8] = row[23:16];
-            shiftrows[7:0] = row[16:8];
+            shiftrows[7:0] = row[15:8];
         end
         default:begin
             shiftrows = row;
@@ -174,10 +219,21 @@ begin
     mixcolumns[7:0] = temp_column[0]^temp[0]^temp_column[1]^temp_column[2]^temp[3];
 end
 endfunction
+//since everyone is 32 bytes wide, for simplicities sake subword is also 32 bit wide
+function [31:0] subword(
+    input [31:0] word
+);
+    begin
+        subword[31:24] = sbox(word[31:24]);
+        subword[23:16] = sbox(word[23:16]);
+        subword[15:8] = sbox(word[15:8]);
+        subword[7:0] = sbox(word[7:0]);
+    end
+endfunction
 //all the look up tables below this
 //sbox function for subbytes
 function [7:0]sbox(
-    input [7:0] inbyte;
+    input [7:0] inbyte
 );//behold the fruits of my manual labour
 begin
 case(inbyte)
@@ -441,6 +497,7 @@ endcase
 end
 endfunction
 //look up table for the round constant
+//use the concat operator here //{output of rcon, 24'h0000000}
 function [7:0] rcon(
     [7:0] round_val
 );
