@@ -97,7 +97,7 @@ always@(*)begin
     end      
 end
 function [7:0]xtimes(
-    input [7:0] in_xt
+    input [7:0] num
 );
     xtimes = (num[7])?((num<<1)^8'h1b):(num<<1);
 endfunction
@@ -112,7 +112,7 @@ endfunction
 //function for shiftrows
 function[31:0]shiftrows(
     input[31:0] row,
-    input integer i;
+    input integer i
 );
 begin
     case(i)
@@ -154,13 +154,14 @@ function [31:0] mixcolumns(
 begin
     reg[7:0]temp[0:3];
     reg[7:0]temp_column[0:3];
-    integer k;
-    //making temporary regs which hold the values of all 4 bytes after the xtimes operation
-    //and also making temp_column which stores b0 through b3
-    for(k=0;k<4;k++)begin
-        temp[i] = xtimes(column[31-8*i:24-8*i]);
-        temp_column[i] = column[31-8*i:24-8*i];
-    end
+    temp[0] = xtimes(column[31:24]);
+    temp[1] = xtimes(column[23:16]);
+    temp[2] = xtimes(column[15:8]);
+    temp[3] = xtimes(column[7:0]);
+    temp_column[0] = column[31:24];
+    temp_column[1] = column[23:16];
+    temp_column[2] = column[15:8];
+    temp_column[3] = column[7:0];
     //now the assignment of the mixcolumns output
     //31-0 is hte range for b-0 through b-4 and on
     //2311
