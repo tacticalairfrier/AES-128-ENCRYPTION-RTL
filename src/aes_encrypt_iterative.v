@@ -37,12 +37,15 @@ always@(posedge clkin, negedge reset)begin
         state <= nextstate;   
     end
     else begin
+        key_arr<=nextkey_arr;
+        state<=nextstate;
+        state_fsm<=nextstate_fsm;
         case(state)
         SETUP:begin
-            key_arr <= 
+            roundcounter = ROUNDS;
         end
         ENCRYPT:begin
-            
+            roundcounter = roundcounter-1;
         end
         UPDATE:begin
             
@@ -57,19 +60,35 @@ always@(*)begin
     nextkey_arr = key_arr;
     if(!reset)begin
         nextstate_fsm = SETUP;
-        out = 128'd0;
         for(i=0;i<16;i=i+1)begin
             nextstate[i] = 8'h00;
             nextkey_arr[i]= 8'h00;
+            out[i]=8'h00;
         end
     end
     else begin
         case(state)
             SETUP:begin
-                
+                if(enable)begin
+                    nextstate_fsm = ENCRYPT;
+                    nexstate = in;
+                    nextstate_key = key;
+                end
+                else nextstate_fsm = SETUP;
             end
+            //all the cipher action happens in the encrypt state instead of making a separate cipher fxn
             ENCRYPT:begin
-                
+                if(roundcounter==ROUNDS)begin
+                    for(i=0;i<16;i++)begin
+                        nextstate[i] = addroundkey(state[i], key_arr[i]);
+                    end                    
+                end
+                else if(roundcounter>0)begin
+                    
+                end
+                else begin
+                    
+                end
             end
             UPDATE: begin
                 
@@ -77,11 +96,85 @@ always@(*)begin
         endcase
     end      
 end
-function xtimes(
+function [7:0]xtimes(
     input [7:0] in_xt
 );
     xtimes = (num[7])?((num<<1)^8'h1b):(num<<1);
 endfunction
+//function for addroundkey
+function [7:0] addroundkey(
+    input [7:0] state, key
+);
+begin
+    addroundkey = state^key;  
+end
+endfunction
+//function for shiftrows
+function[31:0]shiftrows(
+    input[31:0] row,
+    input integer i;
+);
+begin
+    case(i)
+        0:begin
+            //the 0th row experiences no change
+            shiftrows = row;
+        end
+        1:begin
+            //the first row is shifted to the right by 1
+            shiftrows[31:24] = row[23:16];
+            shiftrows[23:16] = row[15:8];
+            shiftrows[15:8] = row[7:0];
+            shiftrows[7:0] = row[31:24];
+        end
+        2:begin
+            //second row is shifted to the right by 2
+            shiftrows[31:24] = row[15:8];
+            shiftrows[23:16] = row[7:0];
+            shiftrows[15:8] = row[31:24];
+            shiftrows[7:0] = row[23:16];
+        end
+        3:begin
+            //the third row is shfited to the right by 3
+            shiftrows[31:24] = row[7:0];
+            shiftrows[23:16] = row[31:24];
+            shiftrows[15:8] = row[23:16];
+            shiftrows[7:0] = row[16:8];
+        end
+        default:begin
+            shiftrows = row;
+        end
+    endcase 
+end
+endfunction
+//function for mixcolumns;
+function [31:0] mixcolumns(
+    input [31:0] column
+);
+begin
+    reg[7:0]temp[0:3];
+    reg[7:0]temp_column[0:3];
+    integer k;
+    //making temporary regs which hold the values of all 4 bytes after the xtimes operation
+    //and also making temp_column which stores b0 through b3
+    for(k=0;k<4;k++)begin
+        temp[i] = xtimes(column[31-8*i:24-8*i]);
+        temp_column[i] = column[31-8*i:24-8*i];
+    end
+    //now the assignment of the mixcolumns output
+    //31-0 is hte range for b-0 through b-4 and on
+    //2311
+    mixcolumns[31:24] = temp[0]^temp[1]^temp_column[1]^temp_column[2]^temp_column[3];
+    //1231
+    mixcolumns[23:16] = temp_column[0]^temp[1]^temp[2]^temp_column[2]^temp_column[3];
+    //1123
+    mixcolumns[15:8] = temp_column[0]^temp_column[1]^temp[2]^temp[3]^temp_column[3];
+    //3112
+    mixcolumns[7:0] = temp_column[0]^temp[0]^temp_column[1]^temp_column[2]^temp[3];
+end
+endfunction
+//all the look up tables below this
+//sbox function for subbytes
 function [7:0]sbox(
     input [7:0] inbyte;
 );//behold the fruits of my manual labour
@@ -344,6 +437,25 @@ case(inbyte)
     8'hfe: sbox = 8'hbb;
     8'hff: sbox = 8'h16;       
 endcase
+end
+endfunction
+//look up table for the round constant
+function [7:0] rcon(
+    [7:0] round_val
+);
+begin
+    case(round_val)
+    8'h01: rcon = 8'h01; 
+    8'h02: rcon = 8'h02;
+    8'h03: rcon = 8'h04;
+    8'h04: rcon = 8'h08;
+    8'h05: rcon = 8'h10;
+    8'h06: rcon = 8'h20;
+    8'h07: rcon = 8'h40;
+    8'h08: rcon = 8'h80;
+    8'h09: rcon = 8'h1b;
+    8'h0a: rcon = 8'h36;
+    endcase
 end
 endfunction
 endmodule
