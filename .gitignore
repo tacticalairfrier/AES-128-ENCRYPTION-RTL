@@ -9,6 +9,7 @@ aes_ref
 
 # generated test vectors
 *.csv
+*.csv#
 
 #directory which holds the resources's pdfs
 aes-docs/
