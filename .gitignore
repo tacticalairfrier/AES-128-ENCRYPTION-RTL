@@ -1,8 +1,14 @@
-#files to be ignored in commits 
+# files to be ignored in commits
 
-#testbench artifacts
+# testbench artifacts
 *.vvp
 *.vcd
+
+# generated binary
+aes_ref
+
+# generated test vectors
+*.csv
 
 #directory which holds the resources's pdfs
 aes-docs/
