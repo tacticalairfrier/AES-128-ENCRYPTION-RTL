@@ -11,7 +11,6 @@ module test_aes_iter;
     reg clkin, reset, enable;
     //output wire variables
     wire [127:0] out_tb;
-    integer i;
     wire busy;
     //in and key should get the test vector values before sim starts
     aes_encrypt_iterative DUT_ENC_0(

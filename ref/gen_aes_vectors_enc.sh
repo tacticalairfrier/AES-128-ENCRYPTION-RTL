@@ -17,8 +17,9 @@ set -euo pipefail
 # ── Config ────────────────────────────────────────────────────────────────────
 SRC="aes_ref.c"
 BIN="./aes_ref"
-NUM_VECTORS=1000
-OUTFILE="aes_test_vectors.csv"
+NUM_VECTORS=1999
+# 1999 generated vector + first nist vector
+OUTFILE="aes_test_vectors_enc.csv"
 
 # ── Compile ───────────────────────────────────────────────────────────────────
 echo "[1/3] Compiling $SRC ..."
@@ -48,8 +49,10 @@ echo "key,plaintext,ciphertext" > "$OUTFILE"
 # Always include the FIPS 197 Appendix B known-answer vector first
 KNOWN_KEY="2b7e1516_28aed2a6_abf71588_09cf4f3c"
 KNOWN_PLAIN="3243f6a8_885a308d_313198a2_e0370734"
+KNOWN_KEY_RAW="2b7e151628aed2a6abf7158809cf4f3c"
+KNOWN_PLAIN_RAW="3243f6a8885a308d313198a2e0370734"
 KNOWN_CIPHER=$("$BIN" enc "$KNOWN_PLAIN" "$KNOWN_KEY")
-echo "${KNOWN_KEY},${KNOWN_PLAIN},${KNOWN_CIPHER}" >> "$OUTFILE"
+echo "${KNOWN_KEY_RAW},${KNOWN_PLAIN_RAW},${KNOWN_CIPHER}" >> "$OUTFILE"
 
 # Generate remaining (NUM_VECTORS - 1) random vectors
 for i in $(seq 2 "$NUM_VECTORS"); do

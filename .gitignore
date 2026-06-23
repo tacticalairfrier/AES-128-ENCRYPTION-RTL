@@ -11,5 +11,6 @@ aes_ref
 *.csv
 *.csv#
 
-#directory which holds the resources's pdfs
+#directory which holds the resources's pdfs and the vec dir with all csv files
 aes-docs/
+vec/
