@@ -1,0 +1,61 @@
+# # ==============================================================================
+# MASTER PHYSICAL CONSTRAINTS FILE (.PCF) REFERENCE
+# Target Board: VSDSquadron FPGA Mini (FM)
+# Chip Variant: Lattice iCE40UP5K-SG48ITR
+# This CONSTRAINTS file was made using the help of Gemini AI
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. CORE SYSTEM CLOCK & INPUTS
+# ------------------------------------------------------------------------------
+# Primary Hardware Oscillator Clock Input (Global Buffer Input GBIN/G3)
+set_io clkin          20
+# onboard oscillator for this thing
+# set_io clkin        35 
+
+# Onboard Active-Low Configuration/Reset Lines
+set_io creset_b    8   # Hardware configuration reset input [cite: 126]
+set_io cdone       7   # High signal indicates FPGA successfully loaded configuration [cite: 126]
+
+# ------------------------------------------------------------------------------
+# 2. ONBOARD VISUAL INDICATORS
+# ------------------------------------------------------------------------------
+# Onboard RGB LED Channels (Active-Low Hardware Connection)
+set_io led_red      39
+set_io led_blue     40  # Mapped via RGBL hardware pin [cite: 126]
+set_io led_green    41
+
+# ------------------------------------------------------------------------------
+# 3. FTDI USB-TO-SERIAL BRIDGE INTERFACES (Host Comms Channel)
+# ------------------------------------------------------------------------------
+# Mapped directly to the onboard FT232H chip for PC serial communication
+set_io ftdi_tx      14  # FPGA Transmit (Serial Output line to Host PC) [cite: 126]
+set_io ftdi_rx      15  # FPGA Receive  (Serial Input line from Host PC) [cite: 126]
+
+# ------------------------------------------------------------------------------
+# 4. ONBOARD 4MB (32MBit) SPI FLASH MEMORY INTERFACE
+# ------------------------------------------------------------------------------
+# Configuration lines used by the system to load your binary bitstream at boot
+set_io flash_sck    15  # SPI Serial Clock [cite: 126]
+set_io flash_ss     16  # SPI Slave Select (Active Low) [cite: 126]
+set_io flash_si     17  # SPI Serial Input (MOSI from FPGA view) [cite: 126]
+set_io flash_so     14  # SPI Serial Output (MISO from FPGA view) [cite: 126]
+
+# ------------------------------------------------------------------------------
+# 5. GENERAL PURPOSE I/O (GPIO) HEADER BLUEPRINT
+# ------------------------------------------------------------------------------
+# These generic pins are exposed on your board's side headers. 
+# You can map your custom digital input/output wires to these numbers.
+# Common safely accessible pins from Bank 1 and Bank 2 include:
+# set_io io_pin_01    2
+# set_io io_pin_02    3   # [cite: 126]
+# set_io io_pin_03    4   # [cite: 126]
+# set_io io_pin_04    6   # [cite: 126]
+# set_io io_pin_05    9   # [cite: 126]
+# set_io io_pin_06    10  # [cite: 126]
+# set_io io_pin_07    11  # [cite: 126]
+# set_io io_pin_08    12  # [cite: 126]
+# set_io io_pin_09    13  # [cite: 126]
+# set_io io_pin_10    18  # [cite: 126]
+# set_io io_pin_11    19  # [cite: 126]
+# set_io io_pin_12    21  # [cite: 126]
