@@ -14,8 +14,8 @@ set_io clkin          20
 # set_io clkin        35 
 
 # Onboard Active-Low Configuration/Reset Lines
-set_io creset_b    8   # Hardware configuration reset input [cite: 126]
-set_io cdone       7   # High signal indicates FPGA successfully loaded configuration [cite: 126]
+# set_io creset_b    8   # Hardware configuration reset input [cite: 126]
+# set_io cdone       7   # High signal indicates FPGA successfully loaded configuration [cite: 126]
 
 # ------------------------------------------------------------------------------
 # 2. ONBOARD VISUAL INDICATORS

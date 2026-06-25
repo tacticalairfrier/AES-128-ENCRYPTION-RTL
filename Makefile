@@ -33,19 +33,6 @@ BAUD_RATE    = 115200
 # UNIVERSAL OPEN-SOURCE iCE40 TOOLCHAIN WRAPPER
 # ==============================================================================
 # Simply alter the variables in Section 1 for each new hardware design project.
-
-# ------------------------------------------------------------------------------
-# 1. PROJECT SPECIFIC CONFIGURATION
-# ------------------------------------------------------------------------------
-# Target Module name (Must match your top-level Verilog module identifier)
-TOP          = rgb_blink
-
-# List ALL Verilog source files needed for this design (separated by spaces)
-VERILOG_SRCS = rgb_blink.v
-
-# Name of your Physical Constraints File (without the .pcf extension)
-PCF_NAME     = VSDSquadronFM
-
 # ------------------------------------------------------------------------------
 # 2. HARDWARE SPECIFIC TARGETS
 # ------------------------------------------------------------------------------
