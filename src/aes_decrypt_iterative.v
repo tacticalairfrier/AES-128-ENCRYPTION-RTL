@@ -306,7 +306,7 @@ begin
         8'h08: invsbox = 8'hbf;
         8'h09: invsbox = 8'h40;
         8'h0a: invsbox = 8'ha3;
-        8'h0b: invsbox = 8'h93;
+        8'h0b: invsbox = 8'h9e;
         8'h0c: invsbox = 8'h81;
         8'h0d: invsbox = 8'hf3;
         8'h0e: invsbox = 8'hd7;
