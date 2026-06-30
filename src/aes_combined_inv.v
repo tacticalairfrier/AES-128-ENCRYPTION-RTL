@@ -9,6 +9,8 @@ module aes_combined_inv(
     output reg busy
 );
 reg [127:0] enc_res, dec_res;
+wire busy_e, busy_d;
+
 //encryption and decryption done together output muxed
 aes_encrypt_iterative MOD_ENC(
     .in(data_in),
@@ -17,7 +19,7 @@ aes_encrypt_iterative MOD_ENC(
     .clkin(clkin),
     .reset(reset),
     .enable(enable),
-    .busy(busy)
+    .busy(busy_e)
 );
 aes_decrypt_iterative MOD_DEC(
     .cipher(data_in),
@@ -26,16 +28,11 @@ aes_decrypt_iterative MOD_DEC(
     .clkin(clkin),
     .reset(reset),
     .enable(enable),
-    .busy(busy)
+    .busy(busy_d)
 );
 always@(*)begin
-    if(!reset)begin
-        enc_res = 128'd0;
-        dec_res = 128'd0;
-    end
-    else begin
-        if(mode) out = enc_res;
-        else out = dec_res;
-    end
+    busy = busy_e|busy_d;
+    if(mode) out = enc_res;
+    else out = dec_res;
 end
 endmodule
