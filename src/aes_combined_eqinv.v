@@ -30,7 +30,7 @@ aes_eqdec_iterative MOD_EQDEC(
     .busy(busy_d)
 );
 always@(*)begin
-    busy = busy_e|busy_e;
+    busy = busy_d|busy_e;
     if(mode) out = enc_res;
     else out = dec_res;
 end

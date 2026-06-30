@@ -4,7 +4,7 @@
 `define FALSE 1'b0
 
 module aes_decrypt_iterative(
-    input [127:0] cipher, key,
+    input wire [127:0] cipher, key,
     input wire clkin, reset, enable,
     output reg [127:0] out,
     output reg busy
@@ -282,7 +282,8 @@ begin
         temp[63:32] = temp[95:64] ^ keyscheduler[63:32]; //ks here
         temp[31:0] = temp[63:32] ^ keyscheduler[31:0];//key in becomes hte keyscheduler variable
         //now keyscheduler can move on that is shifted by 128
-        keyscheduler<<=128;
+        // keyscheduler<<=128;
+        keyscheduler = keyscheduler<<128;
         keyscheduler[127:0] = temp; //this should be lower i.e closer to o'th value
     end
 end
