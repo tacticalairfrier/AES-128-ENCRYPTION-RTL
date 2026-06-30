@@ -8,7 +8,6 @@ module aes_decrypt_iterative(
     input wire clkin, reset, enable,
     output reg [127:0] out,
     output reg busy
-
 );
 //comments for linter
 /* verilator lint_off WIDTHTRUNC */
