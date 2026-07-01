@@ -119,7 +119,9 @@ model are hand-written. AI (Claude) was used to generate the bash tooling
 scripts in `ref/` (`aes_ref_generator.sh`, `gen_aes_vectors_enc.sh`,
 `gen_aes_vector_dec.sh`) that compile `aes_ref.c` and drive randomized
 vector generation into CSV form for regression testing — not for the
-core design or verification logic itself.
+core design or verification logic itself. This README was also drafted
+with AI assistance, based on the project's actual source files and a
+design-decisions log written by the author.
 
 ---
 

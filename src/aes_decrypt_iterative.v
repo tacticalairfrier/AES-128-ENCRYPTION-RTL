@@ -32,7 +32,7 @@ always@(posedge clkin, negedge reset)begin
         state_fsm <= SETUP;
         out<=128'h0;
         state <= nextstate; 
-        key_schedule = 1280'b0;
+        key_schedule <= 1280'b0;
     end
     else begin
         state<=nextstate;
@@ -557,7 +557,7 @@ endfunction
 //look up table for the round constant
 //use the concat operator here //{output of rcon, 24'h0000000}
 function [7:0] rcon(
-    [7:0] round_val
+    input [7:0] round_val
 );
 begin
     case(round_val)
