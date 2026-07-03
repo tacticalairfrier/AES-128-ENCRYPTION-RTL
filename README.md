@@ -127,4 +127,37 @@ design-decisions log written by the author.
 
 ## GDS2 / OpenLane Results
 
-*(to be added)*
+Problem encountered -> Since my implementation uses this syntax for the sbox look up table
+```verilog
+function [7:0]sbox(
+    input [7:0] inbyte
+);
+begin
+case(inbyte)
+    8'h00: sbox = 8'h63;
+    8'h01: sbox = 8'h7c;
+    8'h02: sbox = 8'h77;
+    8'h03: sbox = 8'h7b;
+    8'h04: sbox = 8'hf2;
+    8'h05: sbox = 8'h6b;
+    8'h06: sbox = 8'h6f;
+    .
+    .
+    .
+  endcase
+end
+endfunction 
+```
+When I push my design through openlane or even the flow for implementing this on a 
+lattice ice40 FPGA `ice40up5k`, the problem faced here is Yosys cant correctly do 
+procedural synthesis on this method and tries to map everythhing into a 
+comparator with a mux specifically the `proc` pass of yosys which maps it into 256 comparators 
+feeding into a singular multiplexer, which over 16 iteration for 16 bytes explodes in number of 
+LUT's burnt in the process.
+
+But vivado (AMD) on the other hand maps this primitive into a ROM array which significantly reduces
+the amount of time taken for synthesis and hence the luts burnt in the process.
+
+I am thus going to tacle this issue in a new repository where i will try to optimise aes 
+as much as possible for lut count and will try to implement canright sbox for further reduction
+in LUT count for my soc.
