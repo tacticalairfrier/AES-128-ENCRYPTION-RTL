@@ -122,7 +122,7 @@ always@(*)begin
             end
             UPDATE: begin
                 nextstate_fsm = SETUP;
-                busy = `FALSE;
+                busy = `TRUE;
             end
         endcase
     end      
