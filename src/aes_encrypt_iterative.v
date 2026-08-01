@@ -85,7 +85,8 @@ always@(*)begin
                 //rotword is shiftrows at 1 th mode
                 nextkey_arr[127:96] = shiftrows(key_arr[31:0], 1);
                 //subword is as it is
-                nextkey_arr[127:96] =  subword(nextkey_arr[127:96]);
+                // nextkey_arr[127:96] =  subword(nextkey_arr[127:96]);
+                nextkey_arr[127:96] = {sbox(nextkey_arr[127:120]), sbox(nextkey_arr[119:112]), sbox(nextkey_arr[111:104]), sbox(nextkey_arr[103:96])};
                 //this is for rcon
                 nextkey_arr[127:96] = nextkey_arr[127:96] ^ {rcon((ROUNDS-roundcounter)+4'h1), 24'h000000} ^ key_arr[127:96];
                 //loop for the other 3 words
